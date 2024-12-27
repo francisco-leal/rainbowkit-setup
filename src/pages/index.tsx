@@ -1,9 +1,50 @@
-import { ConnectButton } from '@rainbow-me/rainbowkit';
-import type { NextPage } from 'next';
-import Head from 'next/head';
-import styles from '../styles/Home.module.css';
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import type { NextPage } from "next";
+import Head from "next/head";
+import styles from "../styles/Home.module.css";
+import {
+  useAccount,
+  useConnect,
+  useDisconnect,
+  useSignMessage,
+  useSwitchChain,
+} from "wagmi";
+import { useState } from "react";
+import { base, baseSepolia } from "viem/chains";
+import { verifyMessage } from "@wagmi/core";
+import { config } from "../wagmi";
 
 const Home: NextPage = () => {
+  const account = useAccount();
+  const { connectors, connect, status, error } = useConnect();
+  const { disconnect } = useDisconnect();
+  const { switchChain } = useSwitchChain();
+  const { signMessageAsync } = useSignMessage();
+  const [signature, setSignature] = useState<`0x${string}` | null>(null);
+  const [result, setResult] = useState<boolean | null>(null);
+
+  const handleSignMessage = async () => {
+    const signature = await signMessageAsync({
+      message: `Signing message from: ${account.address} on chain ${account.chain?.name}`,
+    });
+    setSignature(signature);
+    setResult(null);
+  };
+
+  const validateSignature = async () => {
+    if (!account.address) return;
+    if (!signature) return;
+
+    const result = await verifyMessage(config, {
+      address: account.address,
+      message: `Signing message from: ${account.address} on chain ${account.chain?.name}`,
+      signature,
+    });
+
+    console.log(result);
+    setResult(result);
+  };
+
   return (
     <div className={styles.container}>
       <Head>
@@ -16,59 +57,46 @@ const Home: NextPage = () => {
       </Head>
 
       <main className={styles.main}>
-        <ConnectButton />
+        <div>
+          <h2>Account</h2>
 
-        <h1 className={styles.title}>
-          Welcome to <a href="">RainbowKit</a> + <a href="">wagmi</a> +{' '}
-          <a href="https://nextjs.org">Next.js!</a>
-        </h1>
+          <div>
+            status: {account.status}
+            <br />
+            addresses: {JSON.stringify(account.addresses)}
+            <br />
+            chainId: {account.chainId}
+          </div>
+        </div>
 
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.tsx</code>
-        </p>
+        <div>
+          <h2>Connect</h2>
+          <ConnectButton />
+          <div>{status}</div>
+          <div>{error?.message}</div>
+        </div>
 
-        <div className={styles.grid}>
-          <a className={styles.card} href="https://rainbowkit.com">
-            <h2>RainbowKit Documentation &rarr;</h2>
-            <p>Learn how to customize your wallet connection flow.</p>
-          </a>
+        <div>
+          <h2>Switch Chain - current chainId: {account.chain?.name}</h2>
+          <button onClick={() => switchChain({ chainId: baseSepolia.id })}>
+            Switch to Base Sepolia
+          </button>
+          <button onClick={() => switchChain({ chainId: base.id })}>
+            Switch to Base
+          </button>
+        </div>
 
-          <a className={styles.card} href="https://wagmi.sh">
-            <h2>wagmi Documentation &rarr;</h2>
-            <p>Learn how to interact with Ethereum.</p>
-          </a>
-
-          <a
-            className={styles.card}
-            href="https://github.com/rainbow-me/rainbowkit/tree/main/examples"
-          >
-            <h2>RainbowKit Examples &rarr;</h2>
-            <p>Discover boilerplate example RainbowKit projects.</p>
-          </a>
-
-          <a className={styles.card} href="https://nextjs.org/docs">
-            <h2>Next.js Documentation &rarr;</h2>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a
-            className={styles.card}
-            href="https://github.com/vercel/next.js/tree/canary/examples"
-          >
-            <h2>Next.js Examples &rarr;</h2>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            className={styles.card}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          >
-            <h2>Deploy &rarr;</h2>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
+        <div>
+          <h2>Sign Message</h2>
+          <button onClick={handleSignMessage} disabled={!account.address}>
+            Sign Message
+          </button>
+          <button onClick={validateSignature} disabled={!signature}>
+            Validate Signature
+          </button>
+          {result !== null && (
+            <div>{result ? "Signature is valid" : "Signature is invalid"}</div>
+          )}
         </div>
       </main>
 
